@@ -167,15 +167,15 @@ private:
   double m_delta;
   double m_udelta;
   double m_loadfactor;                          //!< Load factor
-  double m_rate;                                //!< Input Link Rate
-  double m_Linkcapacity;                        //!< Input Link Capacity
+  DataRate m_Linkcapacity;                      //!< Input Link Capacity
   Time m_freezeTime;                            //!< Time interval during which Pmark cannot be updated
 
   // ** Variables maintained by YELLOW
   double m_capacity;                            //!< Virtual link Capacity
-  double m_increment;
-  double m_decrement;
+  double m_increment;                           //!< Increment factor
+  double m_decrement;                           //!< ecrement factor
   uint32_t m_pkt;                               //!< Counter to track enqueued packets to calculate Link Input Rate
+  double m_rate;                                //!< Input Link Rate
   Time m_lastUpdateTime;                        //!< last time at which Pmark was updated
   Time m_idleStartTime;                         //!< Time when YELLOW Queue Disc entered the idle period
   bool m_isIdle;                                //!< True if queue is Idle

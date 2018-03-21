@@ -67,7 +67,7 @@ TypeId YellowQueueDisc::GetTypeId (void)
                    MakeDoubleChecker<double> ())
     .AddAttribute ("Beta",
                    "Beta Value",
-                   DoubleValue (1),
+                   DoubleValue (1.0),
                    MakeDoubleAccessor (&YellowQueueDisc::m_decrement),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("Delta",
@@ -77,16 +77,16 @@ TypeId YellowQueueDisc::GetTypeId (void)
                    MakeDoubleChecker<double> ())
     .AddAttribute ("Gamma",
                    "Link Utilization Factor",
-                   DoubleValue (1),
+                   DoubleValue (1.0),
                    MakeDoubleAccessor (&YellowQueueDisc::m_gamma),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("LinkCapacity",
                    "Queue Link Capacity",
-                   DoubleValue (0.00025),
-                   MakeDoubleAccessor (&YellowQueueDisc::m_Linkcapacity),
-                   MakeDoubleChecker<double> ())
+                   DataRateValue (DataRate("10Mbps")),
+                   MakeDataRateAccessor (&YellowQueueDisc::m_Linkcapacity),
+                   MakeDataRateChecker ())
     .AddAttribute ("Udelta",
-                   "Pmark decrement Value",
+                   "Udelta decrement Value",
                    DoubleValue (11.25),
                    MakeDoubleAccessor (&YellowQueueDisc::m_udelta),
                    MakeDoubleChecker<double> ())
@@ -192,8 +192,14 @@ YellowQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
     {
       // Increment the Pmark
       IncrementPmark ();
+    }
+   else if(m_loadfactor<1)
+    {
+        // Decrement the Pmark
+        DecrementPmark ();
+    }    
 
-      // Drops due to queue limit: reactive
+
       if (DropEarly ())
     {
       // Early probability drop: proactive
@@ -201,6 +207,7 @@ YellowQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
       Drop (item);
       return false;
     }
+
 
   // No drop
   bool isEnqueued = GetInternalQueue (0)->Enqueue (item);
@@ -210,7 +217,7 @@ YellowQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
       Time now = Simulator::Now ();
       if (now - m_lastUpdateTime > m_freezeTime)
         {
-          m_rate = m_pkt/m_freezeTime.GetInteger();
+          m_rate = m_pkt*(8.0*m_meanPktSize)/(now - m_lastUpdateTime).GetInteger();
           m_lastUpdateTime = now;
           m_pkt=0;
         }
@@ -230,6 +237,7 @@ void YellowQueueDisc::InitializeParams (void)
   m_stats.unforcedDrop = 0;
   m_isIdle = true;
   m_pkt=0;
+  m_loadfactor=1;
 }
 
 bool YellowQueueDisc::DropEarly (void)
@@ -256,7 +264,7 @@ void YellowQueueDisc::CalculateLoadFactor (Ptr<QueueDiscItem> item)
       qcf = (m_gamma * m_beta * m_queueLimit) / ((m_beta - 1) * nQueued + m_queueLimit);
     }
 
-  m_capacity = qcf * m_Linkcapacity;
+  m_capacity = qcf * m_Linkcapacity.GetBitRate ();
   m_loadfactor = m_rate / m_capacity;
 
 }
@@ -264,7 +272,7 @@ void YellowQueueDisc::CalculateLoadFactor (Ptr<QueueDiscItem> item)
 void YellowQueueDisc::IncrementPmark (void)
 {
   NS_LOG_FUNCTION (this);
-  m_increment = m_udelta * m_loadfactor / m_Linkcapacity;
+  m_increment = m_udelta * m_loadfactor / m_Linkcapacity.GetBitRate ();
   Time now = Simulator::Now ();
   if (now - m_lastUpdateTime > m_freezeTime)
     {
@@ -285,7 +293,7 @@ void YellowQueueDisc::DecrementPmark (void)
     {
       uint32_t m = 0; // stores the number of times Pmark should be decremented
       m = ((now - m_idleStartTime) / m_freezeTime);
-      m_decrement = m_udelta / (m_loadfactor * m_Linkcapacity);
+      m_decrement = m_udelta / (m_loadfactor * m_Linkcapacity.GetBitRate ());
       m_Pmark -= (m_decrement * m);
       m_lastUpdateTime = now;
       if (m_Pmark < 0.0)
