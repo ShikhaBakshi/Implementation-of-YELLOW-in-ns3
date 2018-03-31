@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2016 NITK Surathkal
+ * Copyright (c) 2018 NITK Surathkal
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,9 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Vivek Jain <jain.vivek.anand@gmail.com>
- *         Mohit P. Tahiliani <tahiliani@nitk.edu.in>
- *
+ * Author: Shikha Bakshi<shikhabakshi912@gmail.com>
+ *         
  */
 
 #include "ns3/core-module.h"
@@ -82,7 +81,7 @@ int main (int argc, char *argv[])
       Config::SetDefault ("ns3::BlueQueueDisc::Mode", StringValue ("QUEUE_MODE_BYTES"));
       Config::SetDefault ("ns3::BlueQueueDisc::QueueLimit", UintegerValue (queueDiscLimitPackets * pktSize));
       Config::SetDefault ("ns3::YellowQueueDisc::Mode", StringValue ("QUEUE_MODE_BYTES"));
-      Config::SetDefault ("ns3::YellowQueueDisc::QueueLimit", UintegerValue (queueDiscLimitPackets * pktSize));
+      //Config::SetDefault ("ns3::YellowQueueDisc::QueueLimit", UintegerValue (queueDiscLimitPackets * pktSize));
      /* minTh *= pktSize;
       maxTh *= pktSize;*/
     }
@@ -95,7 +94,7 @@ int main (int argc, char *argv[])
       Config::SetDefault ("ns3::YellowQueueDisc::Gamma", DoubleValue (1.0));
       Config::SetDefault ("ns3::YellowQueueDisc::Udelta", DoubleValue (11.25));
       Config::SetDefault ("ns3::YellowQueueDisc::MeanPktSize", UintegerValue (pktSize));
-      Config::SetDefault ("ns3::YellowQueueDisc::PMark", DoubleValue (1.0));
+      Config::SetDefault ("ns3::YellowQueueDisc::PMark", DoubleValue (0.2));
     }
   else
     {
@@ -111,7 +110,7 @@ int main (int argc, char *argv[])
   bottleNeckLink.SetChannelAttribute ("Delay", StringValue (bottleNeckLinkDelay));
 
   PointToPointHelper pointToPointLeaf;
-  pointToPointLeaf.SetDeviceAttribute    ("DataRate", StringValue ("10Mbps"));
+  pointToPointLeaf.SetDeviceAttribute    ("DataRate", StringValue ("100Mbps"));
   pointToPointLeaf.SetChannelAttribute   ("Delay", StringValue ("1ms"));
 
   PointToPointDumbbellHelper d (nLeaf, pointToPointLeaf,
@@ -178,17 +177,18 @@ int main (int argc, char *argv[])
 
   std::cout << "Running the simulation" << std::endl;
   Simulator::Run ();
+  std::cout<<"Start time:"<<Simulator::Now ()<<std::endl;
 
   std::cout << "*** Stats from the bottleneck queue disc ***" << std::endl;
 
   if (queueDiscType == "YELLOW")
     {
       YellowQueueDisc::Stats st = StaticCast<YellowQueueDisc> (queueDiscs.Get (0))->GetStats ();
-      /*if (st.unforcedDrop == 0)
+      if (st.unforcedDrop == 0)
         {
           std::cout << "There should be some unforced drops" << std::endl;
           exit (1);
-        }*/
+        }
 
       /*if (st.qLimDrop != 0)
         {
@@ -196,7 +196,7 @@ int main (int argc, char *argv[])
           exit (1);
         }*/
       std::cout << "\t " << st.unforcedDrop << " drops due to prob mark" << std::endl;
-      //std::cout << "\t " << st.forcedDrop << " drops due to hard mark" << std::endl;
+      std::cout << "\t " << st.forcedDrop << " drops due to hard mark" << std::endl;
       //std::cout << "\t " << st.qLimDrop << " drops due to queue full" << std::endl;
     }
   else
@@ -212,6 +212,7 @@ int main (int argc, char *argv[])
     }
 
   std::cout << "Destroying the simulation" << std::endl;
+  std::cout<<"End time:"<<Simulator::Now ();
   Simulator::Destroy ();
   return 0;
 }

@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2016 NITK Surathkal
+ * Copyright (c) 2018 NITK Surathkal
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,9 +15,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors: Vivek Jain <jain.vivek.anand@gmail.com>
- *          Sandeep Singh <hisandeepsingh@hotmail.com>
- *          Mohit P. Tahiliani <tahiliani@nitk.edu.in>
+ * Authors: Shikha Bakshi <shikhabakshi912@gmail.com>
+ *          
+ *          
  */
 
 #ifndef YELLOW_QUEUE_DISC_H
@@ -175,7 +175,9 @@ private:
   double m_increment;                           //!< Increment factor
   double m_decrement;                           //!< ecrement factor
   uint32_t m_pkt;                               //!< Counter to track enqueued packets to calculate Link Input Rate
+  uint32_t m_in_pkt;
   double m_rate;                                //!< Input Link Rate
+  double m_in_rate;
   Time m_lastUpdateTime;                        //!< last time at which Pmark was updated
   Time m_idleStartTime;                         //!< Time when YELLOW Queue Disc entered the idle period
   bool m_isIdle;                                //!< True if queue is Idle

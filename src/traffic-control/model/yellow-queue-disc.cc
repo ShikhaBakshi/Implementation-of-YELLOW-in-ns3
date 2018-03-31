@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2016 NITK Surathkal
+ * Copyright (c) 2018 NITK Surathkal
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -52,7 +52,7 @@ TypeId YellowQueueDisc::GetTypeId (void)
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("PMark",
                    "Marking Probabilty",
-                   DoubleValue (0),
+                   DoubleValue (0.0),
                    MakeDoubleAccessor (&YellowQueueDisc::m_Pmark),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("MeanPktSize",
@@ -63,12 +63,12 @@ TypeId YellowQueueDisc::GetTypeId (void)
     .AddAttribute ("Alpha",
                    "Factor affecting queue drain rate",
                    DoubleValue (1.02),
-                   MakeDoubleAccessor (&YellowQueueDisc::m_increment),
+                   MakeDoubleAccessor (&YellowQueueDisc::m_alpha),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("Beta",
                    "Beta Value",
                    DoubleValue (1.0),
-                   MakeDoubleAccessor (&YellowQueueDisc::m_decrement),
+                   MakeDoubleAccessor (&YellowQueueDisc::m_beta),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("Delta",
                    "Delta Value",
@@ -92,7 +92,7 @@ TypeId YellowQueueDisc::GetTypeId (void)
                    MakeDoubleChecker<double> ())
     .AddAttribute ("FreezeTime",
                    "Time interval during which Pmark cannot be updated",
-                   TimeValue (Seconds (0.1)),
+                   TimeValue (Seconds (0.5)),
                    MakeTimeAccessor (&YellowQueueDisc::m_freezeTime),
                    MakeTimeChecker ())
   ;
@@ -186,6 +186,17 @@ YellowQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
       DecrementPmark ();
       m_isIdle = false; // not idle anymore
     }
+  m_in_pkt++;
+  Time now = Simulator::Now ();
+  // std::cout<<"rate "<<m_rate;  
+  if (now - m_lastUpdateTime >= m_freezeTime)
+    {
+      m_in_rate = m_in_pkt*(8.0*m_meanPktSize)/(now - m_lastUpdateTime).GetSeconds();
+      //std::cout<<"Input Rate"<<m_in_rate;
+     // m_lastUpdateTime = now;
+      m_in_pkt=0;
+    }
+      
   //calculate load factor
   CalculateLoadFactor (item);
   if (m_loadfactor >= (1 + m_delta))
@@ -211,18 +222,8 @@ YellowQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 
   // No drop
   bool isEnqueued = GetInternalQueue (0)->Enqueue (item);
-  if (isEnqueued)
-    {
-      m_pkt++;
-      Time now = Simulator::Now ();
-      if (now - m_lastUpdateTime > m_freezeTime)
-        {
-          m_rate = m_pkt*(8.0*m_meanPktSize)/(now - m_lastUpdateTime).GetInteger();
-          m_lastUpdateTime = now;
-          m_pkt=0;
-        }
-       
-    }
+//  std::cout<<"isEnqueued "<<isEnqueued;
+
 
   NS_LOG_LOGIC ("\t bytesInQueue  " << GetInternalQueue (0)->GetNBytes ());
   NS_LOG_LOGIC ("\t packetsInQueue  " << GetInternalQueue (0)->GetNPackets ());
@@ -237,13 +238,18 @@ void YellowQueueDisc::InitializeParams (void)
   m_stats.unforcedDrop = 0;
   m_isIdle = true;
   m_pkt=0;
+  m_in_pkt=0;
   m_loadfactor=1;
+  m_rate=m_Linkcapacity.GetBitRate ();
+  m_in_rate=m_Linkcapacity.GetBitRate ();
+//  std::cout<<"m_rate "<<m_rate;
 }
 
 bool YellowQueueDisc::DropEarly (void)
 {
   NS_LOG_FUNCTION (this);
   double u =  m_uv->GetValue ();
+  //std::cout<<u<<" "<<m_Pmark<<"\n";
   if (u <= m_Pmark)
     {
       return true;
@@ -264,8 +270,9 @@ void YellowQueueDisc::CalculateLoadFactor (Ptr<QueueDiscItem> item)
       qcf = (m_gamma * m_beta * m_queueLimit) / ((m_beta - 1) * nQueued + m_queueLimit);
     }
 
-  m_capacity = qcf * m_Linkcapacity.GetBitRate ();
-  m_loadfactor = m_rate / m_capacity;
+  m_capacity = qcf * m_rate;
+  m_loadfactor = m_in_rate / m_capacity;
+// std::cout<<"lf"<<m_loadfactor;
 
 }
 
@@ -273,6 +280,7 @@ void YellowQueueDisc::IncrementPmark (void)
 {
   NS_LOG_FUNCTION (this);
   m_increment = m_udelta * m_loadfactor / m_Linkcapacity.GetBitRate ();
+ // std::cout<<m_increment<<"incre"<<m_Linkcapacity.GetBitRate ()<<"\n";
   Time now = Simulator::Now ();
   if (now - m_lastUpdateTime > m_freezeTime)
     {
@@ -323,8 +331,20 @@ YellowQueueDisc::DoDequeue (void)
 
   NS_LOG_LOGIC ("Number packets " << GetInternalQueue (0)->GetNPackets ());
   NS_LOG_LOGIC ("Number bytes " << GetInternalQueue (0)->GetNBytes ());
+  
+  m_pkt++;
+  Time now = Simulator::Now ();
+     // std::cout<<"rate "<<m_rate;  
+  if (now - m_lastUpdateTime >= m_freezeTime)
+    {
+      m_rate = m_pkt*(8.0*m_meanPktSize)/(now - m_lastUpdateTime).GetSeconds();
+      //std::cout<<"Rate Calculated"<<m_rate;
+     // m_lastUpdateTime = now;
+      m_pkt=0;
+    }
+      
 
-  if (m_loadfactor < 1 && !m_isIdle)
+  /*if (m_loadfactor < 1 && !m_isIdle)
     {
       NS_LOG_LOGIC ("Queue empty");
 
@@ -332,7 +352,7 @@ YellowQueueDisc::DoDequeue (void)
 
       m_idleStartTime = Simulator::Now ();
       m_isIdle = true;
-    }
+    }*/
 
   return item;
 }
