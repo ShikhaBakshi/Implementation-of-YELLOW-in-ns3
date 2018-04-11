@@ -1,7 +1,7 @@
-#Implementation-of-YELLOW-in-NS3
-##Course Code: CS704
-##Seminar Project
-##Overview
+# Implementation-of-YELLOW-in-NS3
+## Course Code: CS704
+## Seminar Project
+## Overview
 
 Yellow [1] is a rate based AQM which takes into consideration the link utilization factor as a primary credit and also introduces a queue
 ccontrol function (QCF) as a secondary merit to mark the packet with certain probability.
